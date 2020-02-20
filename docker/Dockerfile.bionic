@@ -89,4 +89,4 @@ HEALTHCHECK --interval=10s --timeout=60s --retries=3 \
 
 USER allure
 
-CMD $ROOT/runAllure.sh & $ROOT/runAllureAPI.sh & $ROOT/checkAllureResultsFiles.sh
+ENTRYPOINT ["$ROOT/runAllure.sh & $ROOT/runAllureAPI.sh & $ROOT/checkAllureResultsFiles.shh"]
