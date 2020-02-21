@@ -30,7 +30,7 @@ RUN wget --no-verbose -O /tmp/allure-$RELEASE.zip $ALLURE_REPO/$RELEASE/allure-c
 RUN apt-get remove --auto-remove wget -y
 
 RUN groupadd --gid ${GID} allure \
-    && useradd --uid ${UID} --gid allure --shell /bin/bash --create-home allure
+  && useradd --uid ${UID} --gid allure --shell /bin/bash --create-home allure
 
 RUN chmod -R +x /allure-$RELEASE/bin
 
@@ -70,4 +70,5 @@ EXPOSE $PORT_API
 
 USER allure
 
-CMD $ROOT/runAllure.sh & $ROOT/runAllureAPI.sh & $ROOT/checkAllureResultsFiles.sh
+# CMD $ROOT/run.sh
+ENTRYPOINT ["/app/run.sh"]
