@@ -1,86 +1,73 @@
 apiVersion: v1
 kind: Template
-message: "Login to SonarQube with the default admin user: admin/admin"
+message: "Login to allure
 metadata:
   annotations:
-    description: The SonarQube OpenShift template
-    tags: "instant-app,sonarqube"
-  name: sonarqube
+    description: The Allure OpenShift template
+    tags: "instant-app,allure"
+  name: allure
 objects:
   - apiVersion: v1
     kind: Service
     metadata:
       labels:
-        app: sonarqube
-      name: sonarqube
+        app: allure
+      name: allure
     spec:
       ports:
-        - name: sonarqube
-          port: 9000
+        - name: allure
+          port: 4040
           protocol: TCP
-          targetPort: 9000
+          targetPort: 4040
       selector:
-        app: sonarqube
-        deploymentconfig: sonarqube
+        app: allure
+        deploymentconfig: allure
       sessionAffinity: None
       type: ClusterIP
   - apiVersion: v1
     kind: Route
     metadata:
       annotations:
-        description: Route for SonarQube's http service.
+        description: Route for allure's http service.
       labels:
-        app: sonarqube
-      name: sonarqube
+        app: allure
+      name: allure
     spec:
       port:
-        targetPort: sonarqube
+        targetPort: allure
       tls:
         termination: edge
       to:
         kind: Service
-        name: sonarqube
-  - apiVersion: v1
-    data:
-      username: YWRtaW4=
-    kind: Secret
-    labels:
-      app: sonarqube
-    metadata:
-      annotations:
-        template.openshift.io/base64-expose-password: "{.data['password']}"
-      name: sonarqube-admin-password
-    stringData:
-      password: ${SONARQUBE_ADMIN_PASSWORD}
-    type: kubernetes.io/basic-auth
+        name: allure
   - apiVersion: v1
     kind: ImageStream
     metadata:
       labels:
-        app: sonarqube
-      name: sonarqube
+        app: allure
+      name: allure
     spec:
       tags:
         - annotations:
-            description: The SonarQube Docker image
-            tags: sonarqube
+            description: The allure Docker image
+            tags: allure
           from:
             kind: DockerImage
-            name: "bcgovimages/sonarqube:${SONARQUBE_VERSION}"
+            name: "rstens/allure:${ALLURE_VERSION}"
           importPolicy: {}
-          name: "${SONARQUBE_VERSION}"
+          name: "${allure_VERSION}"
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
       labels:
-        app: sonarqube
-        deploymentconfig: sonarqube
-      name: sonarqube
+        app: allure
+        deploymentconfig: allure
+      name: allure
     spec:
       replicas: 1
       selector:
-        app: sonarqube
-        deploymentconfig: sonarqube
+        app: allure
+        deploymentconfig: allure
       strategy:
         resources: {}
         rollingParams:
@@ -93,32 +80,32 @@ objects:
       template:
         metadata:
           annotations:
-            openshift.io/container.sonarqube.image.entrypoint: '["./bin/run.sh"]'
+            openshift.io/container.allure.image.entrypoint: '["./bin/run.sh"]'
           creationTimestamp: null
           labels:
-            app: sonarqube
-            deploymentconfig: sonarqube
+            app: allure
+            deploymentconfig: allure
         spec:
           containers:
             - env:
-                - name: SONARQUBE_JDBC_PASSWORD
+                - name: allure_JDBC_PASSWORD
                   value: "${POSTGRESQL_PASSWORD}"
-                - name: SONARQUBE_JDBC_URL
-                  value: "jdbc:postgresql://postgresql-sonarqube/sonar"
-                - name: SONARQUBE_JDBC_USERNAME
-                  value: sonar
+                - name: allure_JDBC_URL
+                  value: "jdbc:postgresql://postgresql-allure/ALLURE"
+                - name: allure_JDBC_USERNAME
+                  value: ALLURE
               volumeMounts:
-                - mountPath: /opt/sonarqube/data
-                  name: sonar-data
+                - mountPath: /opt/allure/data
+                  name: ALLURE-data
                   subPath: data
-                - mountPath: /opt/sonarqube/logs
-                  name: sonar-logs
+                - mountPath: /opt/allure/logs
+                  name: ALLURE-logs
                   subPath: logs
-                - mountPath: /opt/sonarqube/temp
-                  name: sonar-temp
+                - mountPath: /opt/allure/temp
+                  name: ALLURE-temp
                   subPath: temp
-                - mountPath: /opt/sonarqube/extensions/plugins
-                  name: sonar-plugins
+                - mountPath: /opt/allure/extensions/plugins
+                  name: ALLURE-plugins
                   subPath: plugins
               image: " "
               imagePullPolicy: IfNotPresent
@@ -131,7 +118,7 @@ objects:
                 periodSeconds: 20
                 successThreshold: 1
                 timeoutSeconds: 5
-              name: sonarqube
+              name: allure
               ports:
                 - containerPort: 9000
                   protocol: TCP
@@ -158,30 +145,30 @@ objects:
           terminationGracePeriodSeconds: 30
           volumes:
             - emptyDir: {}
-              name: sonar-data
+              name: ALLURE-data
             - emptyDir: {}
-              name: sonar-logs
+              name: ALLURE-logs
             - emptyDir: {}
-              name: sonar-temp
-            - name: sonar-plugins
+              name: ALLURE-temp
+            - name: ALLURE-plugins
               persistentVolumeClaim:
-                claimName: sonarqube-data
+                claimName: allure-data
       triggers:
         - type: ConfigChange
         - imageChangeParams:
             automatic: true
             containerNames:
-              - sonarqube
+              - allure
             from:
               kind: ImageStreamTag
-              name: "sonarqube:${SONARQUBE_VERSION}"
+              name: "allure:${allure_VERSION}"
           type: ImageChange
   - apiVersion: v1
     kind: Service
     metadata:
       labels:
-        app: sonarqube
-      name: postgresql-sonarqube
+        app: allure
+      name: postgresql-allure
     spec:
       ports:
         - name: postgresql
@@ -189,22 +176,22 @@ objects:
           protocol: TCP
           targetPort: 5432
       selector:
-        app: sonarqube
-        deploymentconfig: postgresql-sonarqube
+        app: allure
+        deploymentconfig: postgresql-allure
       sessionAffinity: None
       type: ClusterIP
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
       labels:
-        app: sonarqube
-        deploymentconfig: postgresql-sonarqube
-      name: postgresql-sonarqube
+        app: allure
+        deploymentconfig: postgresql-allure
+      name: postgresql-allure
     spec:
       replicas: 1
       selector:
-        app: sonarqube
-        deploymentconfig: postgresql-sonarqube
+        app: allure
+        deploymentconfig: postgresql-allure
       strategy:
         recreateParams:
           timeoutSeconds: 600
@@ -213,17 +200,17 @@ objects:
       template:
         metadata:
           labels:
-            app: sonarqube
-            deploymentconfig: postgresql-sonarqube
+            app: allure
+            deploymentconfig: postgresql-allure
         spec:
           containers:
             - env:
                 - name: POSTGRESQL_USER
-                  value: sonar
+                  value: ALLURE
                 - name: POSTGRESQL_PASSWORD
                   value: "${POSTGRESQL_PASSWORD}"
                 - name: POSTGRESQL_DATABASE
-                  value: sonar
+                  value: ALLURE
               image: " "
               imagePullPolicy: IfNotPresent
               livenessProbe:
@@ -273,7 +260,7 @@ objects:
           volumes:
             - name: postgresql-data
               persistentVolumeClaim:
-                claimName: postgresql-sonarqube-data
+                claimName: postgresql-allure-data
       test: false
       triggers:
         - imageChangeParams:
@@ -290,8 +277,8 @@ objects:
     kind: PersistentVolumeClaim
     metadata:
       labels:
-        app: sonarqube
-      name: postgresql-sonarqube-data
+        app: allure
+      name: postgresql-allure-data
     spec:
       accessModes:
         - ReadWriteOnce
@@ -303,49 +290,28 @@ objects:
     kind: PersistentVolumeClaim
     metadata:
       labels:
-        app: sonarqube
-      name: sonarqube-data
+        app: allure
+      name: allure-data
     spec:
       accessModes:
         - ReadWriteOnce
-      storageClassName: ${SONAR_PERSISTENT_VOLUME_CLASS}
+      storageClassName: ${ALLURE_PERSISTENT_VOLUME_CLASS}
       resources:
         requests:
-          storage: "${SONAR_VOLUME_CAPACITY}"
+          storage: "${ALLURE_VOLUME_CAPACITY}"
 parameters:
-  - displayName: SonarQube version
-    name: SONARQUBE_VERSION
+  - displayName: allure version
+    name: ALLURE_VERSION
     required: true
     value: "7.9.1"
-  - description: Password for SonarQube Server PostgreSQL backend
-    displayName: SonarQube's PostgreSQL Password
-    from: "[a-zA-Z0-9]{16}"
-    generate: expression
-    name: POSTGRESQL_PASSWORD
-    required: true
-  - description: Password for SonarQube Admin
-    displayName: SonarQube's Admin Password
-    from: "[a-zA-Z0-9]{8}"
-    generate: expression
-    name: SONARQUBE_ADMIN_PASSWORD
-    required: true
-  - description: Volume space available for PostgreSQL
-    displayName: PostgreSQL Volume Capacity
-    name: POSTGRESQL_VOLUME_CAPACITY
+  - description: Volume space available for allure
+    displayName: allure Volume Capacity
+    name: ALLURE_VOLUME_CAPACITY
     required: true
     value: 5Gi
-  - description: Volume space available for SonarQube
-    displayName: SonarQube Volume Capacity
-    name: SONAR_VOLUME_CAPACITY
-    required: true
-    value: 5Gi
-  - name: SONAR_PERSISTENT_VOLUME_CLASS
+  - name: ALLURE_PERSISTENT_VOLUME_CLASS
     displayName: Persistent Volume Class name
     description: The class of the volume; netapp-file-standard
     required: false
     value: netapp-file-standard
-  - name: POSTGRESQL_PERSISTENT_VOLUME_CLASS
-    displayName: Persistent Volume Class name
-    description: The class of the volume; netapp-file-standard
-    required: false
-    value: netapp-file-standard
+
