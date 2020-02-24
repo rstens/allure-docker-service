@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: Template
-message: "Login to allure
+message: "Login to allure"
 metadata:
   annotations:
     description: The Allure OpenShift template
@@ -19,6 +19,10 @@ objects:
           port: 4040
           protocol: TCP
           targetPort: 4040
+        - name: allure_api
+          port: 5050
+          protocol: TCP
+          targetPort: 5050
       selector:
         app: allure
         deploymentconfig: allure
@@ -41,6 +45,22 @@ objects:
         kind: Service
         name: allure
   - apiVersion: v1
+    kind: Route
+    metadata:
+      annotations:
+        description: Route for allure's api service.
+      labels:
+        app: allure
+      name: allure_api
+    spec:
+      port:
+        targetPort: allure_api
+      tls:
+        termination: edge
+      to:
+        kind: Service
+        name: allure_api
+  - apiVersion: v1
     kind: ImageStream
     metadata:
       labels:
@@ -53,9 +73,8 @@ objects:
             tags: allure
           from:
             kind: DockerImage
-            name: "rstens/allure:${ALLURE_VERSION}"
+            name: "rstens/allure:latest"
           importPolicy: {}
-          name: "${allure_VERSION}"
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
@@ -80,7 +99,7 @@ objects:
       template:
         metadata:
           annotations:
-            openshift.io/container.allure.image.entrypoint: '["./bin/run.sh"]'
+            openshift.io/container.allure.image.entrypoint: '["./app/run.sh"]'
           creationTimestamp: null
           labels:
             app: allure
@@ -88,45 +107,30 @@ objects:
         spec:
           containers:
             - env:
-                - name: allure_JDBC_PASSWORD
-                  value: "${POSTGRESQL_PASSWORD}"
-                - name: allure_JDBC_URL
-                  value: "jdbc:postgresql://postgresql-allure/ALLURE"
-                - name: allure_JDBC_USERNAME
-                  value: ALLURE
-              volumeMounts:
-                - mountPath: /opt/allure/data
-                  name: ALLURE-data
-                  subPath: data
-                - mountPath: /opt/allure/logs
-                  name: ALLURE-logs
-                  subPath: logs
-                - mountPath: /opt/allure/temp
-                  name: ALLURE-temp
-                  subPath: temp
-                - mountPath: /opt/allure/extensions/plugins
-                  name: ALLURE-plugins
-                  subPath: plugins
+                volumeMounts:
+                  - mountPath: /app/allure-results
+                    name: allure-data
+                    subPath: allure-results
               image: " "
               imagePullPolicy: IfNotPresent
               livenessProbe:
                 failureThreshold: 3
                 httpGet:
                   path: /
-                  port: 9000
+                  port: 4040
                 initialDelaySeconds: 60
                 periodSeconds: 20
                 successThreshold: 1
                 timeoutSeconds: 5
               name: allure
               ports:
-                - containerPort: 9000
+                - containerPort: 4040
                   protocol: TCP
               readinessProbe:
                 failureThreshold: 3
                 httpGet:
                   path: /
-                  port: 9000
+                  port: 4040
                 initialDelaySeconds: 60
                 periodSeconds: 20
                 successThreshold: 1
@@ -134,11 +138,11 @@ objects:
               resources:
                 limits:
                   cpu: 1
-                  memory: 4Gi
-                requests:
-                  cpu: 500m
                   memory: 2Gi
-              terminationMessagePath: /dev/termination-log
+                requests:
+                  cpu: 125m
+                  memory: 2Gi
+              terminationMessagePath: /app/termination-log
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           securityContext: {}
@@ -146,11 +150,6 @@ objects:
           volumes:
             - emptyDir: {}
               name: ALLURE-data
-            - emptyDir: {}
-              name: ALLURE-logs
-            - emptyDir: {}
-              name: ALLURE-temp
-            - name: ALLURE-plugins
               persistentVolumeClaim:
                 claimName: allure-data
       triggers:
@@ -161,131 +160,8 @@ objects:
               - allure
             from:
               kind: ImageStreamTag
-              name: "allure:${allure_VERSION}"
+              name: "allure:latest"
           type: ImageChange
-  - apiVersion: v1
-    kind: Service
-    metadata:
-      labels:
-        app: allure
-      name: postgresql-allure
-    spec:
-      ports:
-        - name: postgresql
-          port: 5432
-          protocol: TCP
-          targetPort: 5432
-      selector:
-        app: allure
-        deploymentconfig: postgresql-allure
-      sessionAffinity: None
-      type: ClusterIP
-  - apiVersion: v1
-    kind: DeploymentConfig
-    metadata:
-      labels:
-        app: allure
-        deploymentconfig: postgresql-allure
-      name: postgresql-allure
-    spec:
-      replicas: 1
-      selector:
-        app: allure
-        deploymentconfig: postgresql-allure
-      strategy:
-        recreateParams:
-          timeoutSeconds: 600
-        resources: {}
-        type: Recreate
-      template:
-        metadata:
-          labels:
-            app: allure
-            deploymentconfig: postgresql-allure
-        spec:
-          containers:
-            - env:
-                - name: POSTGRESQL_USER
-                  value: ALLURE
-                - name: POSTGRESQL_PASSWORD
-                  value: "${POSTGRESQL_PASSWORD}"
-                - name: POSTGRESQL_DATABASE
-                  value: ALLURE
-              image: " "
-              imagePullPolicy: IfNotPresent
-              livenessProbe:
-                failureThreshold: 3
-                initialDelaySeconds: 30
-                periodSeconds: 10
-                successThreshold: 1
-                tcpSocket:
-                  port: 5432
-                timeoutSeconds: 1
-              name: postgresql
-              ports:
-                - containerPort: 5432
-                  protocol: TCP
-              readinessProbe:
-                exec:
-                  command:
-                    - /bin/sh
-                    - "-i"
-                    - "-c"
-                    - >-
-                      psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d
-                      $POSTGRESQL_DATABASE -c 'SELECT 1'
-                failureThreshold: 3
-                initialDelaySeconds: 5
-                periodSeconds: 10
-                successThreshold: 1
-                timeoutSeconds: 1
-              resources:
-                limits:
-                  cpu: 250m
-                  memory: 256Mi
-                requests:
-                  cpu: 100m
-                  memory: 100Mi
-              securityContext:
-                capabilities: {}
-                privileged: false
-              terminationMessagePath: /dev/termination-log
-              volumeMounts:
-                - mountPath: /var/lib/pgsql/data
-                  name: postgresql-data
-          dnsPolicy: ClusterFirst
-          restartPolicy: Always
-          securityContext: {}
-          terminationGracePeriodSeconds: 30
-          volumes:
-            - name: postgresql-data
-              persistentVolumeClaim:
-                claimName: postgresql-allure-data
-      test: false
-      triggers:
-        - imageChangeParams:
-            automatic: true
-            containerNames:
-              - postgresql
-            from:
-              kind: ImageStreamTag
-              name: "postgresql:9.5"
-              namespace: openshift
-          type: ImageChange
-        - type: ConfigChange
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      labels:
-        app: allure
-      name: postgresql-allure-data
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      storageClassName: ${POSTGRESQL_PERSISTENT_VOLUME_CLASS}
-      resources:
-        requests:
-          storage: "${POSTGRESQL_VOLUME_CAPACITY}"
   - apiVersion: v1
     kind: PersistentVolumeClaim
     metadata:
@@ -303,7 +179,7 @@ parameters:
   - displayName: allure version
     name: ALLURE_VERSION
     required: true
-    value: "7.9.1"
+    value: "latest"
   - description: Volume space available for allure
     displayName: allure Volume Capacity
     name: ALLURE_VOLUME_CAPACITY
@@ -314,4 +190,3 @@ parameters:
     description: The class of the volume; netapp-file-standard
     required: false
     value: netapp-file-standard
-

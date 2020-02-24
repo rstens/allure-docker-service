@@ -69,6 +69,3 @@ EXPOSE $PORT
 EXPOSE $PORT_API
 
 USER allure
-
-# CMD $ROOT/run.sh
-ENTRYPOINT ["/app/run.sh"]
