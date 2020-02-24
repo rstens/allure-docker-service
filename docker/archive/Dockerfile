@@ -1,7 +1,7 @@
 FROM openjdk:8-jdk-slim
 LABEL maintainer="fescobar.systems@gmail.com"
 
-ARG RELEASE=NONE
+ARG RELEASE=2.13.1
 ARG ALLURE_REPO=https://dl.bintray.com/qameta/maven/io/qameta/allure/allure-commandline
 ARG UID=1000
 ARG GID=1000
